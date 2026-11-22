@@ -739,6 +739,10 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 		recordMergeConflictExit(ctx, params.Store, workerResult.IssueID, mergeConflictExit, log)
 	}
 
+	// A made hop hands the issue to its next stage, which owns every watch
+	// from here on, so the rebase run that hopped restores none either.
+	hopMade := false
+
 	switch workerResult.ExitKind {
 	case WorkerExitNormal:
 		state.Completed[workerResult.IssueID] = struct{}{}
@@ -750,7 +754,6 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 
 		_, claimedAtExit := state.Claimed[workerResult.IssueID]
 		terminalSuppressed := false
-		hopMade := false
 
 		// A successful handoff replaces the state the run read, and a
 		// reaction waits hours or days, so it records the state the exit
@@ -893,6 +896,7 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 						StageLineage:        entry.StageLineage,
 						RuleSettingsApplied: entry.RuleSettingsApplied,
 						TemplateID:          entry.TemplateID,
+						ResumeWatch:         entry.resumeWatch,
 						Logger:              log,
 
 						IssueIdentity: issueIdentityOf(entry.Issue),
@@ -985,6 +989,7 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 							StageLineage:        entry.StageLineage,
 							RuleSettingsApplied: entry.RuleSettingsApplied,
 							TemplateID:          entry.TemplateID,
+							ResumeWatch:         entry.resumeWatch,
 							Logger:              log,
 
 							IssueIdentity: issueIdentityOf(entry.Issue),
@@ -1062,6 +1067,7 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 					StageLineage:        entry.StageLineage,
 					RuleSettingsApplied: entry.RuleSettingsApplied,
 					TemplateID:          entry.TemplateID,
+					ResumeWatch:         entry.resumeWatch,
 					Logger:              log,
 
 					IssueIdentity: issueIdentityOf(entry.Issue),
@@ -1595,8 +1601,9 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 	// A rebase continuation that ends with no retry to follow it, and whose
 	// exit seeded no watch, leaves the pull request unwatched: its dispatch
 	// consumed the watch that fired it. An issue seen terminal, by the exit
-	// or by reconciliation during the run, gets none.
-	if !exitFoundTerminal && entry.ObservedTerminalState == "" {
+	// or by reconciliation during the run, gets none, and so does one whose
+	// exit made a stage hop.
+	if !exitFoundTerminal && entry.ObservedTerminalState == "" && !hopMade {
 		restoreMergeConflictWatch(state, workerResult.IssueID, entry.resumeWatch, now, "rebase run ended", log)
 	}
 
