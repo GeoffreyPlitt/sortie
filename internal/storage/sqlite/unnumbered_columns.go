@@ -33,9 +33,11 @@ func (s *Store) addUnnumberedColumns(ctx context.Context) error {
 // dropEarlierEpisodeVersion removes the version row an earlier build of this
 // branch recorded for the reaction episode columns, so this build, whose
 // numbered sequence ends at maxRegistered, does not refuse the database as
-// newer. It acts only when that version is past maxRegistered and the
-// columns the earlier build added are present; any other database is left
-// for the newer-schema check.
+// newer. It acts only when that version is past maxRegistered, nothing newer
+// is recorded, and the columns are exactly the earlier build's: attempts and
+// last_exit present, episodes absent. A database this build has run on has
+// all three, so a version 55 recorded on it later is another migration's,
+// and it is left for the newer-schema check.
 func (s *Store) dropEarlierEpisodeVersion(ctx context.Context, maxRegistered int) error {
 	if maxRegistered >= episodeColumnsVersion {
 		return nil
@@ -69,6 +71,9 @@ func (s *Store) dropEarlierEpisodeVersion(ctx context.Context, maxRegistered int
 		if _, ok := cols[name]; !ok {
 			return nil
 		}
+	}
+	if _, ok := cols["episodes"]; ok {
+		return nil
 	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM schema_migrations WHERE version = ?", episodeColumnsVersion); err != nil {
 		return fmt.Errorf("drop earlier reaction episode version: %w", err)

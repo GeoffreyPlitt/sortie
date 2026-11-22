@@ -86,3 +86,26 @@ func TestMigrate_RefusesNewerSchemaWithoutEpisodeColumns(t *testing.T) {
 		t.Error("unknown version 55 dropped, want it kept")
 	}
 }
+
+// TestMigrate_KeepsAnotherVersion55OnAnAdoptedDatabase covers a database
+// this build has run on, which holds all three episode columns, that a later
+// release then migrated with a version 55 of its own: the row is not the
+// earlier build's and stays, so the newer-schema check refuses the database.
+func TestMigrate_KeepsAnotherVersion55OnAnAdoptedDatabase(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	s := openTestStore(t)
+	migrateOrFatal(t, s)
+	if _, err := s.db.ExecContext(ctx,
+		"INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)", episodeColumnsVersion, "2026-12-01T00:00:00Z"); err != nil {
+		t.Fatalf("record a later release's version 55: %v", err)
+	}
+
+	if err := s.Migrate(ctx); err == nil {
+		t.Fatal("Migrate() with a later release's version 55 = nil, want the newer-schema refusal")
+	}
+	if !episodeVersionRecorded(t, s) {
+		t.Error("a later release's version 55 dropped, want it kept")
+	}
+}
