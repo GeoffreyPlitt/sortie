@@ -2,7 +2,10 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	"github.com/sortie-ai/sortie/internal/domain"
 )
 
 // exitAndSeed ends the running rebase's worker through HandleWorkerExit with
@@ -77,5 +80,71 @@ func TestMergeConflictPath_SuccessfulRebaseStartsNewEpisode(t *testing.T) {
 	}
 	if p.escalated() {
 		t.Error("escalation stands after rebases that each pushed a new head")
+	}
+}
+
+// TestMergeConflictPath_FailingRebaseEscalatesAtCap drives a rebase whose
+// worker fails every time: the exit puts no error retry on the backoff lane,
+// whose retries no budget counts, but restores the watch, so each failure
+// spends one attempt and the episode escalates at max_retries.
+func TestMergeConflictPath_FailingRebaseEscalatesAtCap(t *testing.T) {
+	t.Parallel()
+
+	const maxRetries = 2
+	p := newRebasePath(t, maxRetries)
+	for run := 1; run <= maxRetries; run++ {
+		if !p.pass() {
+			t.Fatalf("pass %d scheduled no rebase, want one", run)
+		}
+		p.start()
+		p.exitAndSeed(WorkerResult{ExitKind: WorkerExitError, Error: errors.New("agent crashed")})
+		if retry := p.state.RetryAttempts[p.issueID]; retry != nil {
+			retry.TimerHandle.Stop()
+			t.Fatalf("run %d: failed rebase put on the error retry lane, want the watch to decide", run)
+		}
+	}
+
+	if p.pass() {
+		t.Fatal("pass after max_retries failed rebases scheduled another, want an escalation")
+	}
+	if !p.escalated() {
+		t.Error("escalation does not stand")
+	}
+	if got := p.metrics.checks["dispatched"]; got != maxRetries {
+		t.Errorf(`IncMergeConflictChecks("dispatched") = %d, want %d`, got, maxRetries)
+	}
+}
+
+// TestMergeConflictPath_UsageLimitedRebaseRefunds covers a rebase a usage
+// limit refuses: it keeps its retry, and its attempt is given back until
+// that retry starts.
+func TestMergeConflictPath_UsageLimitedRebaseRefunds(t *testing.T) {
+	t.Parallel()
+
+	p := newRebasePath(t, 1)
+	if !p.pass() {
+		t.Fatal("first pass scheduled no rebase")
+	}
+	p.start()
+	result := WorkerResult{ExitKind: WorkerExitError, Error: &domain.AgentError{Kind: domain.ErrUsageLimit, Message: "usage limit reached"}}
+	result.IssueID, result.Identifier, result.AgentAdapter = p.issueID, p.issueID+"-ident", "mock"
+	params := defaultExitParams(t, nil)
+	params.Store = p.store
+	params.TrackerAdapter = p.tracker
+	params.HandoffState = rebasePathHandoff
+	params.ActiveStates = []string{"queue"}
+	params.TerminalStates = []string{"done"}
+	HandleWorkerExit(p.state, result, params)
+
+	retry := p.state.RetryAttempts[p.issueID]
+	if retry == nil {
+		t.Fatal("usage-limited rebase has no retry, want one")
+	}
+	retry.TimerHandle.Stop()
+	if !retry.attemptPending {
+		t.Error("retry of a usage-limited rebase does not hold its attempt pending, want it counted again at start")
+	}
+	if episode, err := p.store.GetReactionEpisode(context.Background(), p.issueID, ReactionKindMergeConflict); err != nil || episode.Attempts != 0 || episode.Dispatched {
+		t.Errorf("persisted episode = %+v, %v; want 0 attempts and no mark", episode, err)
 	}
 }

@@ -1501,6 +1501,17 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 				nextAttempt = incumbent.Attempt
 				retryDeferred = true
 
+			case entry.ReactionKind == ReactionKindMergeConflict && !usageRefused:
+				// A failed rebase is not put back on the error lane, whose
+				// retries no budget counts: releasing the claim lets the
+				// exit restore the merge-conflict watch, whose next pass
+				// counts another attempt on the head and escalates at
+				// max_retries.
+				log.Warn("rebase run failed, leaving the next attempt to the merge conflict watch",
+					slog.Any("error", workerResult.Error),
+				)
+				delete(state.Claimed, workerResult.IssueID)
+
 			default:
 				nextAttempt = NextAttempt(entry.RetryAttempt)
 				delayMS := computeBackoffDelay(nextAttempt, params.MaxRetryBackoffMS)

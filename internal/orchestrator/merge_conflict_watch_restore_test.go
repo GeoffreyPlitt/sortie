@@ -26,7 +26,8 @@ func TestHandleWorkerExit_RestoresMergeConflictWatch(t *testing.T) {
 	}{
 		{name: "cancelled with no retry", result: WorkerResult{ExitKind: WorkerExitCancelled}, issueState: "queue-pr", wantWatch: true},
 		{name: "normal exit without pull request metadata", result: WorkerResult{ExitKind: WorkerExitNormal}, issueState: "queue-pr", wantWatch: true},
-		{name: "error exit retries instead", result: WorkerResult{ExitKind: WorkerExitError, Error: errors.New("agent crashed")}, issueState: "queue-pr", wantRetried: true},
+		{name: "error exit leaves the next attempt to the watch", result: WorkerResult{ExitKind: WorkerExitError, Error: errors.New("agent crashed")}, issueState: "queue-pr", wantWatch: true},
+		{name: "usage-limited exit retries instead", result: WorkerResult{ExitKind: WorkerExitError, Error: &domain.AgentError{Kind: domain.ErrUsageLimit, Message: "limit"}}, issueState: "queue-pr", wantRetried: true},
 		{name: "terminal issue", result: WorkerResult{ExitKind: WorkerExitNormal}, issueState: "done"},
 		{name: "cancelled after reconciliation saw the issue terminal", result: WorkerResult{ExitKind: WorkerExitCancelled}, issueState: "queue-pr", observedTerminal: "done"},
 		{name: "blocked stop parks", result: WorkerResult{ExitKind: WorkerExitNormal, SoftStop: true, SoftStopReason: string(workspace.StatusBlocked)}, issueState: "queue-pr"},
