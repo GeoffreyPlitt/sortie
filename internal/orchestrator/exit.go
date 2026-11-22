@@ -733,8 +733,10 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 	// terminal state; no watch is restored for it.
 	exitFoundTerminal := false
 
+	var mergeConflictExit string
 	if entry.ReactionKind == ReactionKindMergeConflict {
-		recordMergeConflictExit(ctx, params.Store, workerResult.IssueID, mergeConflictExitOf(workerResult), log)
+		mergeConflictExit = mergeConflictExitOf(workerResult)
+		recordMergeConflictExit(ctx, params.Store, workerResult.IssueID, mergeConflictExit, log)
 	}
 
 	switch workerResult.ExitKind {
@@ -1585,6 +1587,10 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 	// or by reconciliation during the run, gets none.
 	if !exitFoundTerminal && entry.ObservedTerminalState == "" {
 		restoreMergeConflictWatch(state, workerResult.IssueID, entry.resumeWatch, now, "rebase run ended", log)
+	}
+
+	if spendsNoMergeConflictAttempt(mergeConflictExit) {
+		refundMergeConflictAttempt(ctx, state, params.Store, workerResult.IssueID, true, log)
 	}
 
 	deleteLivePass(ctx, params.Store, workerResult.IssueID, storage.LivePassRunning, log)

@@ -472,6 +472,11 @@ type RetryEntry struct {
 	// shortage keeps Attempt. Runtime-only.
 	holdRearmed bool
 
+	// attemptPending is true on a merge-conflict rebase retry whose attempt
+	// the reconcile pass counted in memory and no worker start has
+	// persisted yet. Runtime-only.
+	attemptPending bool
+
 	// waitsForCapacity is true when HandleRetryTimer re-armed this entry
 	// because no orchestrator slot or SSH host was free, so a worker exit
 	// that frees one makes it due at once. Runtime-only.
