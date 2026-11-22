@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Dashboard: below the width at which the Pipeline panel drops its filter chips, every lane sets its key and agent line under its title, instead of the lanes with a short title keeping it beside the title. ([#1650](https://github.com/sortie-ai/sortie/issues/1650))
 - Dashboard: clicking the Issue or PR button of a needs-attention item on Overview, with or without Cmd or Ctrl held, now opens one tab instead of two. ([#1684](https://github.com/sortie-ai/sortie/issues/1684))
 - A reaction run that ends with the issue in the handoff state, such as a merge-conflict rebase, now puts the pull request back under the CI, review, auto-merge and merge-conflict watches, so a new conflict or failure on the head it pushed is noticed instead of waiting for a restart.
+- A merge-conflict rebase that was scheduled but never started, for example because Sortie restarted first, is now scheduled again instead of leaving the pull request in conflict for good, and a rebase that ends without replacing the conflicting head counts against `max_retries` and escalates once they are spent instead of being skipped. ([#1688](https://github.com/sortie-ai/sortie/issues/1688))
 
 ## [1.32.0] - 2026-11-09
 
