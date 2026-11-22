@@ -734,7 +734,7 @@ func HandleWorkerExit(state *State, workerResult WorkerResult, params HandleWork
 	exitFoundTerminal := false
 
 	if entry.ReactionKind == ReactionKindMergeConflict {
-		releaseMergeConflictDispatchMark(ctx, params.Store, workerResult.IssueID, log)
+		recordMergeConflictExit(ctx, params.Store, workerResult.IssueID, mergeConflictExitOf(workerResult), log)
 	}
 
 	switch workerResult.ExitKind {
