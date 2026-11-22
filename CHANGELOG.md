@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A reaction run that ends with the issue in the handoff state, such as a merge-conflict rebase, now puts the pull request back under the CI, review, auto-merge and merge-conflict watches, so a new conflict or failure on the head it pushed is noticed instead of waiting for a restart.
 - A merge-conflict rebase that was scheduled but never started, for example because Sortie restarted first, is now scheduled again instead of leaving the pull request in conflict for good, and a rebase that ends without replacing the conflicting head counts against `max_retries` and escalates once they are spent instead of being skipped. ([#1688](https://github.com/sortie-ai/sortie/issues/1688))
 - A retry that finds every agent slot or SSH host busy now checks again at the next poll at the same attempt, and starts as soon as a running session ends, instead of backing off toward `agent.max_retry_backoff_ms` with a higher attempt each time and leaving a freed slot idle for up to that long.
+- When the tracker read that puts pull requests in the handoff state back under their watches fails at startup, Sortie now tries it again on every poll until it succeeds, instead of leaving those pull requests unwatched until the next restart.
 
 ## [1.32.0] - 2026-11-09
 
