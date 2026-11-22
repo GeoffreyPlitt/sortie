@@ -240,5 +240,4 @@ var migrations = []Migration{
 	{Version: 52, Description: "comments each agent conversation was given", SQL: migration052SQL},
 	{Version: 53, Description: "moment a run began its last turn, on run history and parks", SQL: migration053SQL},
 	{Version: 54, Description: "turn records of a run and their per-model tokens", SQL: migration054SQL},
-	{Version: 55, Description: "episode state on reaction fingerprints", Apply: addReactionEpisodeColumns},
 }

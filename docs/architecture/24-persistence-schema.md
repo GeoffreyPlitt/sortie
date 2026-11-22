@@ -244,7 +244,7 @@ A run's turn records are written once, at worker exit, in the same transaction a
 | `last_exit`   | TEXT    | How the last run dispatched for `fingerprint` ended (`normal`, `gave_up`, `cancelled`, `usage_limited`, or empty), for a kind that records it (`merge-conflict`). Cleared when the fingerprint changes. Defaults to empty |
 | `episodes`    | INTEGER | Consecutive new episodes no clean read has closed, for a kind that bounds them (`merge-conflict`). Defaults to `0` |
 
-The three episode columns are added by migration 55, which adds only the columns the table lacks, so a database that already has them is left as it is.
+The three episode columns are added after the numbered migrations, each only when the table lacks it, and no version is recorded for them, so the next numbered migration keeps its number. A database an earlier build of this branch migrated with them as version 55 has that version row dropped, so it is not refused as newer.
 
 Primary key: `(issue_id, kind)`. Every reaction kind that deduplicates across restarts owns a row here under its own `kind` discriminator, so one issue may hold several rows at once without the kinds interfering. Upserts reset `dispatched` to `0` when the fingerprint value changes, which re-arms the latch for exactly one further action.
 

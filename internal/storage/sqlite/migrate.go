@@ -31,6 +31,10 @@ func (s *Store) Migrate(ctx context.Context) error {
 		return fmt.Errorf("migrations are not sorted by version: %v", versions)
 	}
 
+	if err := s.dropEarlierEpisodeVersion(ctx, versions[len(versions)-1]); err != nil {
+		return err
+	}
+
 	applied, err := s.appliedVersions(ctx)
 	if err != nil {
 		return err
@@ -51,7 +55,7 @@ func (s *Store) Migrate(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
+	return s.addUnnumberedColumns(ctx)
 }
 
 func (s *Store) appliedVersions(ctx context.Context) (map[int]struct{}, error) {
